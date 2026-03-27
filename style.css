@@ -77,6 +77,19 @@ body {
     display: block;
 }
 
+.beta-badge {
+    background: rgba(255, 255, 255, 0.2);
+    color: #fff;
+    font-size: 0.55em;
+    font-weight: 500;
+    padding: 1px 6px;
+    border-radius: 4px;
+    vertical-align: super;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    margin-left: 4px;
+}
+
 .product-name {
     color: var(--primary-green);
     font-size: 0.9rem;
