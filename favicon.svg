@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="body" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#3a3a3a"/>
+      <stop offset="100%" stop-color="#1a1a1a"/>
+    </linearGradient>
+    <linearGradient id="screen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#555"/>
+      <stop offset="100%" stop-color="#333"/>
+    </linearGradient>
+    <linearGradient id="bezel" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#444"/>
+      <stop offset="100%" stop-color="#222"/>
+    </linearGradient>
+  </defs>
+  <!-- Shadow -->
+  <rect x="12" y="8" width="40" height="52" rx="5" ry="5" fill="#000" opacity="0.3" transform="translate(2,2)"/>
+  <!-- PDA Body -->
+  <rect x="10" y="5" width="44" height="54" rx="5" ry="5" fill="url(#body)" stroke="#555" stroke-width="1"/>
+  <!-- Inner bezel -->
+  <rect x="12" y="7" width="40" height="50" rx="4" ry="4" fill="none" stroke="#4a4a4a" stroke-width="0.5"/>
+  <!-- Screen -->
+  <rect x="15" y="10" width="34" height="30" rx="2" ry="2" fill="url(#screen)" stroke="#666" stroke-width="0.5"/>
+  <!-- Screen glare -->
+  <rect x="16" y="11" width="15" height="12" rx="1" ry="1" fill="#fff" opacity="0.06"/>
+  <!-- Chart bars on screen (representing deck analysis) -->
+  <rect x="19" y="30" width="4" height="7" rx="0.5" fill="#888" opacity="0.8"/>
+  <rect x="25" y="25" width="4" height="12" rx="0.5" fill="#999" opacity="0.8"/>
+  <rect x="31" y="22" width="4" height="15" rx="0.5" fill="#aaa" opacity="0.8"/>
+  <rect x="37" y="18" width="4" height="19" rx="0.5" fill="#bbb" opacity="0.8"/>
+  <rect x="43" y="15" width="4" height="22" rx="0.5" fill="#ccc" opacity="0.8"/>
+  <!-- Trend line -->
+  <polyline points="21,29 27,24 33,21 39,17 45,14" fill="none" stroke="#ddd" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/>
+  <!-- Dot accents on trend line -->
+  <circle cx="21" cy="29" r="1.2" fill="#eee" opacity="0.9"/>
+  <circle cx="27" cy="24" r="1.2" fill="#eee" opacity="0.9"/>
+  <circle cx="33" cy="21" r="1.2" fill="#eee" opacity="0.9"/>
+  <circle cx="39" cy="17" r="1.2" fill="#eee" opacity="0.9"/>
+  <circle cx="45" cy="14" r="1.2" fill="#eee" opacity="0.9"/>
+  <!-- Button row -->
+  <rect x="16" y="44" width="8" height="4" rx="1.5" ry="1.5" fill="#2a2a2a" stroke="#555" stroke-width="0.4"/>
+  <rect x="28" y="44" width="8" height="4" rx="1.5" ry="1.5" fill="#2a2a2a" stroke="#555" stroke-width="0.4"/>
+  <rect x="40" y="44" width="8" height="4" rx="1.5" ry="1.5" fill="#2a2a2a" stroke="#555" stroke-width="0.4"/>
+  <!-- Navigation circle button -->
+  <circle cx="32" cy="53" r="3.5" fill="#2a2a2a" stroke="#555" stroke-width="0.5"/>
+  <circle cx="32" cy="53" r="1.5" fill="#444"/>
+  <!-- Top speaker/antenna detail -->
+  <rect x="27" y="6.5" width="10" height="1.5" rx="0.75" fill="#555"/>
+</svg>
