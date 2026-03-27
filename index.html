@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LettsApps - FREE PitchDeck Analyzer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <!-- PDF.js library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <!-- jsPDF library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- Chart.js library -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+    <header class="header">
+
+        <div class="header-container">
+            <div class="logo">
+                <img src="logo.png" alt="LettsGroup" class="brand-logo">
+                <span class="separator">-</span>
+                <span class="product-name">FREE PitchDeck Analyzer</span>
+            </div>
+            <nav class="nav">
+                <a href="https://letts.group/" target="_blank" class="nav-link">LettsGroup <i
+                        class="fas fa-external-link-alt"></i></a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="main">
+        <section id="hero" class="hero">
+            <div class="container">
+                <h1>Master your <span class="highlight">Fundraise</span> with AI.</h1>
+                <p class="subtitle">Get instant investor-grade feedback, ratings, and structural analysis powered by AI.
+                </p>
+
+                <div class="upload-container" id="drop-zone">
+                    <div class="upload-content">
+                        <i class="fas fa-file-pdf upload-icon"></i>
+                        <h3>Drop your pitch deck here</h3>
+                        <p>or click to upload PDF</p>
+                        <input type="file" id="file-input" accept="application/pdf" hidden>
+                    </div>
+                </div>
+                <div id="processing" class="processing hidden">
+                    <div class="spinner"></div>
+                    <p>Analyzing deck structure and content...</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="results" class="results hidden">
+            <div class="container">
+                <div class="dashboard-grid">
+                    <!-- Scorecard -->
+                    <div class="card scorecard-card">
+                        <div class="score-header">
+                            <h2>Overall Scorecard</h2>
+                            <div class="total-rating" id="total-rating">0/10</div>
+                        </div>
+                        <div class="stars" id="score-stars">
+                            <!-- JS will inject stars -->
+                        </div>
+                        <p class="score-summary" id="score-summary">Loading feedback...</p>
+                    </div>
+
+                    <!-- Company Info -->
+                    <div class="card info-card">
+                        <h3>Company Profile</h3>
+                        <div class="info-item">
+                            <span class="label">Likely Stage</span>
+                            <span class="value" id="company-stage">-</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="label">Valuation Range</span>
+                            <span class="value" id="valuation-range">-</span>
+                        </div>
+                    </div>
+
+                    <!-- Structure Checklist -->
+                    <div class="card structure-card">
+                        <h3>Required Sections</h3>
+                        <ul id="section-checklist" class="checklist">
+                            <!-- JS will inject checklist items -->
+                        </ul>
+                    </div>
+
+                    <!-- Feedback -->
+                    <div class="card feedback-card full-width">
+                        <h3>Detailed Feedback</h3>
+                        <div id="feedback-list" class="feedback-grid">
+                            <!-- JS will inject feedback chunks -->
+                        </div>
+
+                        <!-- Analyst Note Section -->
+                        <div id="analyst-note-container" class="analyst-note-container hidden">
+                            <hr class="section-divider">
+                            <div class="note-header">
+                                <div class="note-badge">ECM Analyst Note</div>
+                                <h2>Investment Banking Professional Draft</h2>
+                                <p class="note-meta">Date: January 20, 2026 | Prepared by: LettsApps AI Research</p>
+                            </div>
+
+                            <div id="analyst-note-content" class="note-body">
+                                <!-- Introduction -->
+                                <section class="note-section">
+                                    <h3>1. Executive Summary & Introduction</h3>
+                                    <div id="note-intro" class="note-text"></div>
+                                </section>
+
+                                <!-- Problem & Solution -->
+                                <section class="note-section">
+                                    <h3>2. Key Customer Problem & Offering</h3>
+                                    <div id="note-offering" class="note-text"></div>
+                                </section>
+
+                                <!-- Market Opportunity -->
+                                <section class="note-section">
+                                    <h3>3. Market Opportunity & Competitive Landscape</h3>
+                                    <div class="chart-container">
+                                        <canvas id="marketChart"></canvas>
+                                    </div>
+                                    <div id="note-market" class="note-text"></div>
+                                </section>
+
+                                <!-- Traction & KPIs -->
+                                <section class="note-section">
+                                    <h3>4. Traction & Core KPIs</h3>
+                                    <div class="chart-container">
+                                        <canvas id="tractionChart"></canvas>
+                                    </div>
+                                    <div id="note-traction" class="note-text"></div>
+                                </section>
+
+                                <!-- Team & Execution -->
+                                <section class="note-section">
+                                    <h3>5. Management Team & Execution Capability</h3>
+                                    <div id="note-team" class="note-text"></div>
+                                </section>
+
+                                <!-- Financials -->
+                                <section class="note-section">
+                                    <h3>6. Summary Pro Forma Financial Forecast</h3>
+                                    <div class="chart-container">
+                                        <canvas id="financialChart"></canvas>
+                                    </div>
+                                    <div id="note-financials" class="note-text"></div>
+                                </section>
+
+                                <!-- Conclusion -->
+                                <section class="note-section">
+                                    <h3>7. Investment Conclusion</h3>
+                                    <div id="note-conclusion" class="note-text"></div>
+                                </section>
+
+                                <div class="note-waiver">
+                                    <p><strong>Standard Waiver:</strong> This document is generated by Artificial
+                                        Intelligence based on the provided pitch deck. AI can make mistakes or
+                                        hallucinate information. This note should be treated purely as a draft for
+                                        professional review and does not constitute financial or investment advice.
+                                        Users must verify all data points before making any commercial decisions.</p>
+                                </div>
+                            </div>
+
+                            <div class="note-actions">
+                                <button id="copy-note-btn" class="btn btn-secondary">
+                                    <i class="fas fa-copy"></i> Copy to Clipboard
+                                </button>
+                                <button id="download-note-btn" class="btn btn-secondary">
+                                    <i class="fas fa-download"></i> Download PDF
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Upsell Section -->
+                        <div id="upsell-container" class="upsell-container hidden">
+                            <div class="upsell-card">
+                                <div class="upsell-badge">Next Step</div>
+                                <h2>Ready to Scale? <span class="highlight">Go beyond the deck.</span></h2>
+                                <p>Your analysis is just the beginning. Join the elite network of founders at
+                                    LettsGroup's <strong>AI Venturefactory</strong> to build, fund, and scale your
+                                    vision with AI-native support.</p>
+                                <div class="upsell-features">
+                                    <div class="u-feature"><i class="fas fa-bolt"></i> AI-Native Tech</div>
+                                    <div class="u-feature"><i class="fas fa-chart-line"></i> Strategic Scaling</div>
+                                    <div class="u-feature"><i class="fas fa-network-wired"></i> Unrivaled Network</div>
+                                </div>
+                                <a href="https://letts.group/" target="_blank"
+                                    class="btn btn-primary upsell-btn">Explore AI Venturefactory <i
+                                        class="fas fa-arrow-right"></i></a>
+                            </div>
+                        </div>
+
+                        <button class="btn btn-primary" id="reset-btn">Analyze Another Deck</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2026 LettsApps. All rights reserved. Part of LettsGroup.</p>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
