@@ -1,6 +1,11 @@
 // Configure PDF.js worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
+// API base URL — auto-detects local vs deployed
+const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? '' // Will 404 locally and fall back to regex — that's fine
+    : ''; // On Vercel, /api/analyze is served by the serverless function
+
 const dropZone = document.getElementById('drop-zone');
 const fileInput = document.getElementById('file-input');
 const heroSection = document.getElementById('hero');
@@ -285,9 +290,9 @@ async function handleFileUpload(file) {
             const analysis = await analyzeWithAI(text);
             displayResults(analysis);
         } catch (aiError) {
-            console.warn('AI analysis unavailable, using structural analysis:', aiError.message);
-            updateProcessingStatus('Completing structural analysis...');
-            await new Promise(r => setTimeout(r, 800));
+            console.warn('AI analysis unavailable:', aiError.message);
+            updateProcessingStatus('Running structural analysis...');
+            await new Promise(r => setTimeout(r, 500));
             const analysis = analyzeDeckRegex(text);
             displayResults(analysis);
         }
@@ -392,13 +397,27 @@ function analyzeDeckRegex(text) {
 async function analyzeWithAI(text) {
     updateProcessingStatus('Sending deck to AI for deep analysis...');
 
-    const response = await fetch('/api/analyze', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ deckText: text })
-    });
+    // Abort if the request takes longer than 60 seconds
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 60000);
+
+    let response;
+    try {
+        response = await fetch(`${API_BASE}/api/analyze`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ deckText: text }),
+            signal: controller.signal
+        });
+    } catch (fetchError) {
+        clearTimeout(timeout);
+        throw new Error(fetchError.name === 'AbortError'
+            ? 'AI analysis timed out'
+            : 'AI server unreachable');
+    }
+    clearTimeout(timeout);
 
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
