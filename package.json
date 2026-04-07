@@ -1,0 +1,9 @@
+{
+    "name": "deck-analyser-live",
+    "version": "1.0.0",
+    "private": true,
+    "description": "AI-powered pitch deck analyser",
+    "scripts": {
+        "dev": "vercel dev"
+    }
+}

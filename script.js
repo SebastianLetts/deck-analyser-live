@@ -5,6 +5,7 @@ const dropZone = document.getElementById('drop-zone');
 const fileInput = document.getElementById('file-input');
 const heroSection = document.getElementById('hero');
 const processingSection = document.getElementById('processing');
+const processingStatus = document.getElementById('processing-status');
 const resultsSection = document.getElementById('results');
 const upsellContainer = document.getElementById('upsell-container');
 const resetBtn = document.getElementById('reset-btn');
@@ -261,19 +262,35 @@ function downloadNoteAsPDF() {
 
 // --- Core Logic ---
 
+function updateProcessingStatus(message) {
+    processingStatus.style.opacity = '0';
+    setTimeout(() => {
+        processingStatus.innerText = message;
+        processingStatus.style.opacity = '1';
+    }, 200);
+}
+
 async function handleFileUpload(file) {
     // UI Transitions
     dropZone.classList.add('hidden');
     processingSection.classList.remove('hidden');
+    updateProcessingStatus('Extracting text from PDF...');
 
     try {
         const text = await extractTextFromPDF(file);
-        const analysis = analyzeDeck(text);
 
-        // Simulate AI processing delay
-        setTimeout(() => {
+        // Always try AI analysis first via server proxy
+        updateProcessingStatus('Running AI-powered deep analysis...');
+        try {
+            const analysis = await analyzeWithAI(text);
             displayResults(analysis);
-        }, 2000);
+        } catch (aiError) {
+            console.warn('AI analysis unavailable, using structural analysis:', aiError.message);
+            updateProcessingStatus('Completing structural analysis...');
+            await new Promise(r => setTimeout(r, 800));
+            const analysis = analyzeDeckRegex(text);
+            displayResults(analysis);
+        }
     } catch (error) {
         console.error('Extraction error:', error);
         alert('Failed to process PDF. Please try again.');
@@ -297,24 +314,12 @@ async function extractTextFromPDF(file) {
     return fullText;
 }
 
-function analyzeDeck(text) {
+function analyzeDeckRegex(text) {
     const lowercaseText = text.toLowerCase();
 
-    // Try to extract company name from the first few lines
     let companyName = "the company";
     const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-    const genericTerms = ['investor deck', 'pitch deck', 'confidential', 'presentation', 'business plan', 'strictly confidential'];
 
-    for (const line of lines.slice(0, 5)) {
-        const lowerLine = line.toLowerCase();
-        if (!genericTerms.some(term => lowerLine.includes(term)) && line.length > 1) {
-            // Extraction logic disabled per user request
-            // companyName = line.split('-')[0].split(':')[0].trim();
-            break;
-        }
-    }
-
-    // Check for standard sections
     const sections = {
         'Problem': /problem|pain point|challenge/i.test(lowercaseText),
         'Solution': /solution|product|our way/i.test(lowercaseText),
@@ -326,7 +331,6 @@ function analyzeDeck(text) {
         'Ask/Timeline': /the ask|fundraising|round|milestone|roadmap/i.test(lowercaseText)
     };
 
-    // Determine Stage
     let stage = 'Unknown';
     let valuation = 'N/A';
 
@@ -376,7 +380,60 @@ function analyzeDeck(text) {
         valuation,
         sections,
         feedback,
-        rawText: text
+        rawText: text,
+        aiPowered: false,
+        // Template-based note content (fallback)
+        noteContent: null
+    };
+}
+
+// --- AI-Powered Analysis via Server Proxy ---
+
+async function analyzeWithAI(text) {
+    updateProcessingStatus('Sending deck to AI for deep analysis...');
+
+    const response = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ deckText: text })
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Server error: ${response.status}`);
+    }
+
+    updateProcessingStatus('Processing AI response...');
+
+    const parsed = await response.json();
+
+    // Validate required fields
+    if (!parsed.score || !parsed.sections || !parsed.noteIntro) {
+        throw new Error('AI response missing required fields');
+    }
+
+    return {
+        companyName: parsed.companyName || 'the Company',
+        score: Math.min(10, Math.max(1, parsed.score)),
+        stage: parsed.stage || 'Unknown',
+        valuation: parsed.valuation || 'N/A',
+        sections: parsed.sections,
+        feedback: parsed.feedback || [],
+        rawText: text,
+        aiPowered: true,
+        scoreSummary: parsed.scoreSummary,
+        noteContent: {
+            intro: parsed.noteIntro,
+            offering: parsed.noteOffering,
+            market: parsed.noteMarket,
+            traction: parsed.noteTraction,
+            team: parsed.noteTeam,
+            financials: parsed.noteFinancials,
+            conclusion: parsed.noteConclusion
+        },
+        chartData: parsed.chartData || null
     };
 }
 
@@ -419,7 +476,11 @@ function displayResults(analysis) {
         feedbackList.appendChild(div);
     });
 
-    const summaryText = analysis.score >= 7 ? "Excellent foundation. Focus on refining your financial projections." : "Good start, but missing some critical investor sections.";
+    const summaryText = analysis.scoreSummary
+        ? analysis.scoreSummary
+        : (analysis.score >= 7
+            ? "Excellent foundation. Focus on refining your financial projections."
+            : "Good start, but missing some critical investor sections.");
     document.getElementById('score-summary').innerText = summaryText;
 
     // Generate and display Analyst Note
@@ -432,34 +493,48 @@ function displayResults(analysis) {
 
 function generateAnalystNote(analysis) {
     const { stage, valuation, sections } = analysis;
-    const companyName = "the Company";
+    const companyName = analysis.companyName || "the Company";
 
-    // Introduction text
-    document.getElementById('note-intro').innerText = `We present a comprehensive review of the Company, a high-growth startup currently positioned at the ${stage} stage. Our analysis indicates a valuation range of ${valuation}. The Company demonstrates a ${analysis.score >= 7 ? 'robust' : 'developing'} investment narrative with a clear focus on scale. This initial note synthesizes the core value proposition and market dynamics observed in the provided collateral.\n\nThe Company is operating in a rapidly evolving ecosystem where agility and data-driven execution are paramount. Our ECM research team has evaluated the deck against standard institutional benchmarks to provide this initial assessment.`;
+    if (analysis.noteContent) {
+        // AI-powered content
+        document.getElementById('note-intro').innerText = analysis.noteContent.intro;
+        document.getElementById('note-offering').innerText = analysis.noteContent.offering;
+        document.getElementById('note-market').innerText = analysis.noteContent.market;
+        document.getElementById('note-traction').innerText = analysis.noteContent.traction;
+        document.getElementById('note-team').innerText = analysis.noteContent.team;
+        document.getElementById('note-financials').innerText = analysis.noteContent.financials;
+        document.getElementById('note-conclusion').innerText = analysis.noteContent.conclusion;
+    } else {
+        // Fallback template content
+        document.getElementById('note-intro').innerText = `We present a comprehensive review of ${companyName}, a high-growth startup currently positioned at the ${stage} stage. Our analysis indicates a valuation range of ${valuation}. ${companyName} demonstrates a ${analysis.score >= 7 ? 'robust' : 'developing'} investment narrative with a clear focus on scale. This initial note synthesizes the core value proposition and market dynamics observed in the provided collateral.\n\nThe Company is operating in a rapidly evolving ecosystem where agility and data-driven execution are paramount. Our ECM research team has evaluated the deck against standard institutional benchmarks to provide this initial assessment.`;
 
-    // Offering text
-    document.getElementById('note-offering').innerText = `The core customer problem addressed by the Company centers on ${sections.Problem ? 'verified friction points within their target vertical' : 'inefficiencies identified in current market workflows'}. Their offering is designed to provide a ${sections.Solution ? 'compelling solution-level intervention' : 'significant improvement over legacy alternatives'}.\n\nMarket-wide adoption of such technologies is currently driven by a shift toward more integrated, user-centric platforms. The Company appears to be leveraging this trend by offering a scalable product that prioritizes both impact and ease of integration for the end customer.`;
+        document.getElementById('note-offering').innerText = `The core customer problem addressed by ${companyName} centers on ${sections.Problem ? 'verified friction points within their target vertical' : 'inefficiencies identified in current market workflows'}. Their offering is designed to provide a ${sections.Solution ? 'compelling solution-level intervention' : 'significant improvement over legacy alternatives'}.\n\nMarket-wide adoption of such technologies is currently driven by a shift toward more integrated, user-centric platforms. ${companyName} appears to be leveraging this trend by offering a scalable product that prioritizes both impact and ease of integration for the end customer.`;
 
-    // Market text
-    document.getElementById('note-market').innerText = `The addressable market for the Company is significant, with current estimates suggesting a multi-billion dollar Total Addressable Market (TAM). ${sections['Market Size'] ? 'The deck provides clear validation of these figures' : 'While early, the opportunity suggests immense room for expansion'}.\n\nCompetitive analysis indicates that while incumbents exist, the Company maintains ${analysis.rawText.includes('moat') ? 'a defensible technologcial advantage' : 'a strong first-mover or niche positioning'}. We expect the competitive landscape to consolidate as winners emerge in the ${stage} category.`;
+        document.getElementById('note-market').innerText = `The addressable market for ${companyName} is significant, with current estimates suggesting a multi-billion dollar Total Addressable Market (TAM). ${sections['Market Size'] ? 'The deck provides clear validation of these figures' : 'While early, the opportunity suggests immense room for expansion'}.\n\nCompetitive analysis indicates that while incumbents exist, ${companyName} maintains ${analysis.rawText.includes('moat') ? 'a defensible technological advantage' : 'a strong first-mover or niche positioning'}. We expect the competitive landscape to consolidate as winners emerge in the ${stage} category.`;
 
-    // Traction text
-    document.getElementById('note-traction').innerText = `Traction to date shows a ${sections.Financials ? 'consistent growth trajectory' : 'promising early-stage momentum'}. Key Performance Indicators (KPIs) suggest strong product-market fit. The Company is currently focusing on user acquisition and ${sections['Business Model'] ? 'monetization efficiency' : 'optimizing their core retention loop'}.\n\nInstitutional investors typically look for the 'hockey stick' growth pattern demonstrated here, provided execution remains consistent with the current roadmap.`;
+        document.getElementById('note-traction').innerText = `Traction to date shows a ${sections.Financials ? 'consistent growth trajectory' : 'promising early-stage momentum'}. Key Performance Indicators (KPIs) suggest strong product-market fit. ${companyName} is currently focusing on user acquisition and ${sections['Business Model'] ? 'monetization efficiency' : 'optimizing their core retention loop'}.\n\nInstitutional investors typically look for the 'hockey stick' growth pattern demonstrated here, provided execution remains consistent with the current roadmap.`;
 
-    // Team text
-    document.getElementById('note-team').innerText = `The management team behind the Company possesses a ${sections.Team ? 'strong blend of technical and commercial expertise' : 'foundational set of skills required for this stage'}. The founders have demonstrated early resilience and a clear vision for the Company's future.\n\nExecution capability is reinforced by the team's ability to ${analysis.rawText.includes('milestone') ? 'hit key historical milestones' : 'articulate a cogent strategy for the upcoming fiscal quarters'}. Investors often bet on the 'jockey' as much as the 'horse', and this team shows significant promise.`;
+        document.getElementById('note-team').innerText = `The management team behind ${companyName} possesses a ${sections.Team ? 'strong blend of technical and commercial expertise' : 'foundational set of skills required for this stage'}. The founders have demonstrated early resilience and a clear vision for the company's future.\n\nExecution capability is reinforced by the team's ability to ${analysis.rawText.includes('milestone') ? 'hit key historical milestones' : 'articulate a cogent strategy for the upcoming fiscal quarters'}. Investors often bet on the 'jockey' as much as the 'horse', and this team shows significant promise.`;
 
-    // Financials text
-    document.getElementById('note-financials').innerText = `Pro forma financial forecasts for the Company indicate a path to ${sections.Financials ? 'profitability within the next 36-48 months' : 'significant scale and subsequent exit opportunity'}. The capital efficiency of the business model is a standout feature.\n\nWe anticipate a requirement for follow-on funding to maintain the current growth delta, as outlined in the fundraising roadmap. The projected ROI for early-stage participants remains highly attractive given the current entry valuation.`;
+        document.getElementById('note-financials').innerText = `Pro forma financial forecasts for ${companyName} indicate a path to ${sections.Financials ? 'profitability within the next 36-48 months' : 'significant scale and subsequent exit opportunity'}. The capital efficiency of the business model is a standout feature.\n\nWe anticipate a requirement for follow-on funding to maintain the current growth delta, as outlined in the fundraising roadmap. The projected ROI for early-stage participants remains highly attractive given the current entry valuation.`;
 
-    // Conclusion text
-    document.getElementById('note-conclusion').innerText = `In conclusion, the Company represents a ${analysis.score >= 8 ? 'top-tier' : 'compelling'} investment opportunity in the ${stage} space. The alignment of product, market, and team suggests a high probability of successful execution. We recommend further due diligence to validate the underlying assumptions of the growth model.\n\nThis note serves as an initial primer for institutional stakeholders looking to understand the core drivers of the Company's future performance.`;
+        document.getElementById('note-conclusion').innerText = `In conclusion, ${companyName} represents a ${analysis.score >= 8 ? 'top-tier' : 'compelling'} investment opportunity in the ${stage} space. The alignment of product, market, and team suggests a high probability of successful execution. We recommend further due diligence to validate the underlying assumptions of the growth model.\n\nThis note serves as an initial primer for institutional stakeholders looking to understand the core drivers of ${companyName}'s future performance.`;
+    }
 
     // Render Charts
     renderCharts(analysis);
 }
 
 function renderCharts(analysis) {
+    const cd = analysis.chartData || {};
+
+    // Destroy existing charts to avoid canvas reuse errors
+    Chart.helpers.each(Chart.instances, (instance) => instance.destroy());
+
+    const somVal = cd.marketSOM || 15;
+    const samVal = cd.marketSAM || 35;
+    const otherVal = Math.max(0, 100 - somVal - samVal);
+
     // 1. Market Chart (Pie)
     const marketCtx = document.getElementById('marketChart').getContext('2d');
     new Chart(marketCtx, {
@@ -467,7 +542,7 @@ function renderCharts(analysis) {
         data: {
             labels: ['SOM (Serviceable Obtainable Market)', 'SAM (Serviceable Addressable Market)', 'Other'],
             datasets: [{
-                data: [15, 35, 50],
+                data: [somVal, samVal, otherVal],
                 backgroundColor: ['#003366', '#004d99', '#f0f4f8']
             }]
         },
@@ -479,6 +554,7 @@ function renderCharts(analysis) {
     });
 
     // 2. Traction Chart (Line)
+    const tractionData = cd.tractionData || [10, 25, 45, 80, 150, 280];
     const tractionCtx = document.getElementById('tractionChart').getContext('2d');
     new Chart(tractionCtx, {
         type: 'line',
@@ -486,7 +562,7 @@ function renderCharts(analysis) {
             labels: ['Q1', 'Q2', 'Q3', 'Q4', 'Q1 (Proj)', 'Q2 (Proj)'],
             datasets: [{
                 label: 'User Growth / Revenue Index',
-                data: [10, 25, 45, 80, 150, 280],
+                data: tractionData,
                 borderColor: '#003366',
                 fill: true,
                 backgroundColor: 'rgba(0, 51, 102, 0.1)'
@@ -500,6 +576,8 @@ function renderCharts(analysis) {
     });
 
     // 3. Financial Chart (Bar)
+    const revData = cd.revenueProjection || [100, 450, 1200, 3500];
+    const expData = cd.expenseProjection || [350, 700, 1000, 2000];
     const financialCtx = document.getElementById('financialChart').getContext('2d');
     new Chart(financialCtx, {
         type: 'bar',
@@ -508,12 +586,12 @@ function renderCharts(analysis) {
             datasets: [
                 {
                     label: 'Revenue',
-                    data: [100, 450, 1200, 3500],
+                    data: revData,
                     backgroundColor: '#003366'
                 },
                 {
                     label: 'Expenses',
-                    data: [350, 700, 1000, 2000],
+                    data: expData,
                     backgroundColor: '#cc0000'
                 }
             ]
